@@ -1,0 +1,66 @@
+version: "3.9"
+
+# ============================================================
+# PGI — Docker Compose
+# Uso QAS:    docker compose up
+# Uso PROD:   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ============================================================
+
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      APP_ENV: ${APP_ENV:-qas}
+      APP_PORT: "3001"
+      FRONTEND_URL: http://localhost
+    volumes:
+      - attachments_data:/app/storage/attachments
+    expose:
+      - "3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_APP_ENV: ${APP_ENV:-qas}
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/common.conf:/etc/nginx/conf.d/common.conf:ro
+      # Certificados SSL para producción:
+      # - /etc/ssl/certs/pgi.crt:/etc/ssl/certs/pgi.crt:ro
+      # - /etc/ssl/private/pgi.key:/etc/ssl/private/pgi.key:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  attachments_data:
+    driver: local
+  nginx_logs:
+    driver: local

@@ -1,5 +1,6 @@
 import { JwtService } from '@nestjs/jwt';
 import type { Role, UserRecord } from './auth.types';
+import { NotificationsService } from '../notifications/notifications.service';
 export interface AuthAuditEvent {
     event: string;
     userId: string | null;
@@ -10,12 +11,13 @@ export interface AuthAuditEvent {
 }
 export declare class AuthService {
     private readonly jwtService;
+    private readonly notifications;
     private readonly users;
     private readonly sessions;
     private readonly resetTokens;
     private readonly initialPasswordTokens;
     private readonly auditLog;
-    constructor(jwtService: JwtService);
+    constructor(jwtService: JwtService, notifications: NotificationsService);
     private seedUsers;
     private now;
     private envTag;

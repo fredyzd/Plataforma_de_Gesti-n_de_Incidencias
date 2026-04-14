@@ -8,4 +8,3 @@ export class ResetPasswordDto {
   @MinLength(10)
   new_password!: string;
 }
-

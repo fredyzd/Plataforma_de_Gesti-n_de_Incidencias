@@ -24,6 +24,7 @@ import type {
   SessionRecord,
   UserRecord,
 } from './auth.types';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface AuthAuditEvent {
   event: string;
@@ -39,10 +40,16 @@ export class AuthService {
   private readonly users = new Map<string, UserRecord>();
   private readonly sessions = new Map<string, SessionRecord>();
   private readonly resetTokens = new Map<string, PasswordResetRecord>();
-  private readonly initialPasswordTokens = new Map<string, InitialPasswordRecord>();
+  private readonly initialPasswordTokens = new Map<
+    string,
+    InitialPasswordRecord
+  >();
   private readonly auditLog: AuthAuditEvent[] = [];
 
-  constructor(private readonly jwtService: JwtService) {
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly notifications: NotificationsService,
+  ) {
     void this.seedUsers();
   }
 
@@ -162,7 +169,9 @@ export class AuthService {
 
     if (!user || !user.active) {
       this.recordAuthEvent('login_failed', ip, email, null);
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     if (user.lockUntil && user.lockUntil > now) {
@@ -184,7 +193,9 @@ export class AuthService {
         failedAttempts: String(user.failedAttempts),
       });
 
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     user.failedAttempts = 0;
@@ -199,14 +210,23 @@ export class AuthService {
         usedAt: null,
       });
 
-      this.recordAuthEvent('login_password_change_required', ip, user.email, user.id);
+      this.recordAuthEvent(
+        'login_password_change_required',
+        ip,
+        user.email,
+        user.id,
+      );
       return {
         passwordChangeRequired: true,
         tempToken,
       };
     }
 
-    const tokens = await this.issueSessionTokens(user.id, user.email, user.role);
+    const tokens = await this.issueSessionTokens(
+      user.id,
+      user.email,
+      user.role,
+    );
     this.recordAuthEvent('login_success', ip, user.email, user.id);
     return {
       passwordChangeRequired: false,
@@ -271,33 +291,49 @@ export class AuthService {
 
   async refresh(refreshToken: string, ip: string) {
     if (!refreshToken) {
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     let payload: JwtRefreshPayload;
     try {
-      payload = await this.jwtService.verifyAsync<JwtRefreshPayload>(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret',
-      });
+      payload = await this.jwtService.verifyAsync<JwtRefreshPayload>(
+        refreshToken,
+        {
+          secret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret',
+        },
+      );
     } catch {
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     const session = this.sessions.get(payload.sessionId);
     if (!session || session.revokedAt || session.expiresAt < this.now()) {
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
-    const tokenMatches = await bcrypt.compare(refreshToken, session.refreshTokenHash);
+    const tokenMatches = await bcrypt.compare(
+      refreshToken,
+      session.refreshTokenHash,
+    );
     if (!tokenMatches) {
       this.revokeAllSessionsForUser(session.userId);
       this.recordAuthEvent('refresh_reuse_detected', ip, null, session.userId);
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     const user = this.findUserById(session.userId);
     if (!user || !user.active) {
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     const newTokenId = randomUUID();
@@ -377,6 +413,13 @@ export class AuthService {
     this.resetTokens.set(resetRecord.id, resetRecord);
 
     this.recordAuthEvent('forgot_password_requested', ip, user.email, user.id);
+
+    this.notifications.notifyPasswordReset({
+      email: user.email,
+      resetToken: rawToken,
+      env: this.envTag(),
+    });
+
     const response: Record<string, string> = {
       message: 'Si el correo existe, se enviará un enlace de recuperación',
     };
@@ -404,12 +447,16 @@ export class AuthService {
     }
 
     if (!foundResetToken) {
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     const user = this.findUserById(foundResetToken.userId);
     if (!user) {
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     user.passwordHash = await this.hash(newPassword);
@@ -421,19 +468,27 @@ export class AuthService {
     return { success: true };
   }
 
-  async changeInitialPassword(tempToken: string, newPassword: string, ip: string) {
+  async changeInitialPassword(
+    tempToken: string,
+    newPassword: string,
+    ip: string,
+  ) {
     const tokenRecord = this.initialPasswordTokens.get(tempToken);
     if (
       !tokenRecord ||
       tokenRecord.usedAt ||
       tokenRecord.expiresAt < this.now()
     ) {
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     const user = this.findUserById(tokenRecord.userId);
     if (!user) {
-      throw new UnauthorizedException('Credenciales inválidas o sesión expirada');
+      throw new UnauthorizedException(
+        'Credenciales inválidas o sesión expirada',
+      );
     }
 
     tokenRecord.usedAt = this.now();
@@ -441,7 +496,11 @@ export class AuthService {
     user.forcePasswordChange = false;
     this.revokeAllSessionsForUser(user.id);
 
-    const tokens = await this.issueSessionTokens(user.id, user.email, user.role);
+    const tokens = await this.issueSessionTokens(
+      user.id,
+      user.email,
+      user.role,
+    );
     this.recordAuthEvent('initial_password_changed', ip, user.email, user.id);
 
     return {

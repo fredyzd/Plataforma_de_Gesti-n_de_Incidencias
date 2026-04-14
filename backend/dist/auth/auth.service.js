@@ -48,15 +48,18 @@ const jwt_1 = require("@nestjs/jwt");
 const bcrypt = __importStar(require("bcrypt"));
 const crypto_1 = require("crypto");
 const auth_constants_1 = require("./auth.constants");
+const notifications_service_1 = require("../notifications/notifications.service");
 let AuthService = class AuthService {
     jwtService;
+    notifications;
     users = new Map();
     sessions = new Map();
     resetTokens = new Map();
     initialPasswordTokens = new Map();
     auditLog = [];
-    constructor(jwtService) {
+    constructor(jwtService, notifications) {
         this.jwtService = jwtService;
+        this.notifications = notifications;
         void this.seedUsers();
     }
     async seedUsers() {
@@ -335,6 +338,11 @@ let AuthService = class AuthService {
         };
         this.resetTokens.set(resetRecord.id, resetRecord);
         this.recordAuthEvent('forgot_password_requested', ip, user.email, user.id);
+        this.notifications.notifyPasswordReset({
+            email: user.email,
+            resetToken: rawToken,
+            env: this.envTag(),
+        });
         const response = {
             message: 'Si el correo existe, se enviará un enlace de recuperación',
         };
@@ -414,6 +422,7 @@ let AuthService = class AuthService {
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [jwt_1.JwtService])
+    __metadata("design:paramtypes", [jwt_1.JwtService,
+        notifications_service_1.NotificationsService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

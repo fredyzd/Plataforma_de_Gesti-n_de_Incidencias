@@ -12,4 +12,3 @@ export const RESET_TOKEN_TTL_MINUTES = Number(
 export const INITIAL_PASSWORD_TOKEN_TTL_MINUTES = Number(
   process.env.INITIAL_PASSWORD_TOKEN_TTL_MINUTES ?? 15,
 );
-

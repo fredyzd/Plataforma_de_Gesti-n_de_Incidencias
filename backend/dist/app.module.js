@@ -14,6 +14,11 @@ const app_service_1 = require("./app.service");
 const throttler_1 = require("@nestjs/throttler");
 const core_1 = require("@nestjs/core");
 const auth_module_1 = require("./auth/auth.module");
+const incidents_module_1 = require("./incidents/incidents.module");
+const attachments_module_1 = require("./attachments/attachments.module");
+const notifications_module_1 = require("./notifications/notifications.module");
+const reports_module_1 = require("./reports/reports.module");
+const events_module_1 = require("./events/events.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -27,7 +32,12 @@ exports.AppModule = AppModule = __decorate([
                     limit: 100,
                 },
             ]),
+            notifications_module_1.NotificationsModule,
+            events_module_1.EventsModule,
             auth_module_1.AuthModule,
+            incidents_module_1.IncidentsModule,
+            attachments_module_1.AttachmentsModule,
+            reports_module_1.ReportsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

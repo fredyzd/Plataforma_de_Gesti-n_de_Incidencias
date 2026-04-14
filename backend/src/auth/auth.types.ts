@@ -49,4 +49,3 @@ export interface JwtRefreshPayload {
   sessionId: string;
   tokenId: string;
 }
-

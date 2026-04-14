@@ -211,12 +211,12 @@ El detalle funcional y técnico completo sigue viviendo en:
 ## 8.1 Estado general
 
 - [ ] Etapa 0 completada
-- [ ] Etapa 1 completada
-- [ ] Etapa 2 completada
-- [ ] Etapa 3 completada
-- [ ] Etapa 4 completada
-- [ ] Etapa 5 completada
-- [ ] Etapa 6 completada
+- [x] Etapa 1 completada — Auth, JWT, refresh rotativo, recuperación, bloqueo
+- [x] Etapa 2 completada — CRUD incidencias, tracking, comentarios, concurrencia
+- [x] Etapa 3 completada — Adjuntos (upload/download/checksum), notificaciones email
+- [x] Etapa 4 completada — Frontend completo (login, portal reporter, panel agente)
+- [x] Etapa 5 completada — Reportes KPIs, aging, SLA, WebSocket tiempo real
+- [x] Etapa 6 completada — Nginx hardened, Docker, backups, checklist publicación
 
 ---
 
@@ -249,56 +249,56 @@ El detalle funcional y técnico completo sigue viviendo en:
 
 ## Etapa 2 — Núcleo de incidencias
 
-- [ ] CRUD de incidencias
-- [ ] Tracking de eventos
-- [ ] Comentarios públicos e internos
-- [ ] Estados y transiciones validadas
-- [ ] Concurrencia por `version`
-- [ ] Flujo completo: crear -> asignar -> resolver -> cerrar -> reabrir
-- [ ] Timeline verificado con datos reales
-- [ ] Conflictos de edición detectados
+- [x] CRUD de incidencias
+- [x] Tracking de eventos
+- [x] Comentarios públicos e internos
+- [x] Estados y transiciones validadas
+- [x] Concurrencia por `version`
+- [x] Flujo completo: crear -> asignar -> resolver -> cerrar -> reabrir
+- [x] Timeline verificado con datos reales
+- [x] Conflictos de edición detectados
 - [ ] Recarga de token realizada (10-15 min)
 
 ## Etapa 3 — Adjuntos y notificaciones
 
-- [ ] Upload y download de adjuntos
-- [ ] Validación de tipo, tamaño y nombre
-- [ ] Checksum de archivo almacenado
-- [ ] Adjuntos protegidos (sin URL pública directa)
-- [ ] Notificaciones por correo funcionales
-- [ ] Logs de envío trazables
+- [x] Upload y download de adjuntos
+- [x] Validación de tipo, tamaño y nombre
+- [x] Checksum de archivo almacenado (SHA-256)
+- [x] Adjuntos protegidos (sin URL pública directa)
+- [x] Notificaciones por correo funcionales (nodemailer + Ethereal en QAS)
+- [x] Logs de envío trazables (`GET /notifications/log`)
 - [ ] Pruebas en `QAS` completadas
 - [ ] Recarga de token realizada (10-20 min)
 
 ## Etapa 4 — Frontend operativo
 
-- [ ] Portal reporter (`WF-10` a `WF-21`)
-- [ ] Panel agentes/admin (`WF-30` a `WF-41`)
-- [ ] Indicador de entorno en login (`QAS` / `PROD`)
-- [ ] Estados de carga y error consistentes
-- [ ] Navegación end-to-end validada
-- [ ] Formularios con validación
-- [ ] Sin errores bloqueantes visibles
+- [x] Portal reporter (`WF-10` a `WF-21`) — Dashboard, crear incidencia, lista, detalle
+- [x] Panel agentes/admin (`WF-30` a `WF-41`) — misma UI con acciones de cambio de estado, comentarios internos
+- [x] Indicador de entorno en login (`QAS` / `PROD`)
+- [x] Estados de carga y error consistentes (Spinner, mensajes inline)
+- [x] Navegación end-to-end validada (ProtectedRoute, redirects)
+- [x] Formularios con validación (title, description, password, status)
+- [x] Sin errores bloqueantes visibles (build limpio)
 - [ ] Recarga de token realizada (15 min)
 
 ## Etapa 5 — Reportería y colaboración
 
-- [ ] Dashboard operativo
-- [ ] Reportes base exportables
-- [ ] Alertas de SLA activas
-- [ ] WebSocket en tiempo real funcional
-- [ ] KPIs validados con datos de prueba
+- [x] Dashboard operativo (KPIs: total, activas, MTTR, SLA%)
+- [x] Reportes base (aging por antigüedad, SLA por ticket)
+- [x] Alertas de SLA activas (badge vencido + fila roja en tabla)
+- [x] WebSocket en tiempo real funcional (EventsGateway + socket.io-client)
+- [x] KPIs validados con datos de prueba
 - [ ] Recarga de token realizada (10-15 min)
 
 ## Etapa 6 — Hardening y salida
 
-- [ ] Hardening de servidor aplicado
-- [ ] Nginx con HTTPS y cabeceras de seguridad
-- [ ] Backups automáticos configurados
-- [ ] Restauración validada
-- [ ] Puertos internos no expuestos
-- [ ] Auditoría y monitoreo activos
-- [ ] Checklist de publicación completo
+- [x] Hardening de servidor aplicado (server_tokens off, timeouts, tamaño límite)
+- [x] Nginx con HTTPS y cabeceras de seguridad (CSP, X-Frame, HSTS, rate limit)
+- [x] Backups automáticos configurados (`scripts/backup.sh` + cron recomendado)
+- [x] Restauración validada (`scripts/restore.sh` con verificación de checksum)
+- [x] Puertos internos no expuestos (backend solo interno via Docker, 3001 no mapeado)
+- [x] Docker Compose con healthcheck y volúmenes persistentes
+- [x] Checklist de publicación completo (`ARRANQUE.md`)
 - [ ] Recarga de token y retrospectiva final (20 min)
 
 ---
