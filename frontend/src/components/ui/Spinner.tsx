@@ -21,3 +21,11 @@ export function PageLoader() {
     </div>
   )
 }
+
+export function ContentLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center py-32">
+      <Spinner className="h-7 w-7 text-indigo-500" />
+    </div>
+  )
+}

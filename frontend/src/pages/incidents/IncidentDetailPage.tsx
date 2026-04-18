@@ -4,7 +4,7 @@ import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { AppShell, PageHeader } from '../../components/layout/AppShell'
 import { PriorityBadge, StatusBadge } from '../../components/ui/Badge'
-import { PageLoader, Spinner } from '../../components/ui/Spinner'
+import { ContentLoader, Spinner } from '../../components/ui/Spinner'
 import type { Attachment, Comment, Incident, IncidentStatus, TrackingEvent } from '../../types'
 import {
   MessageSquare,
@@ -241,7 +241,7 @@ export default function IncidentDetailPage() {
       })
   }
 
-  if (loading) return <PageLoader />
+  if (loading) return <AppShell><ContentLoader /></AppShell>
   if (!incident) return (
     <AppShell>
       <div className="p-6 text-slate-500">Incidencia no encontrada.</div>

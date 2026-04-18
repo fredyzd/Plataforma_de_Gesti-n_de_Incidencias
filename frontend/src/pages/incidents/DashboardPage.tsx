@@ -4,7 +4,7 @@ import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { AppShell, PageHeader } from '../../components/layout/AppShell'
 import { PriorityBadge, StatusBadge } from '../../components/ui/Badge'
-import { PageLoader } from '../../components/ui/Spinner'
+import { ContentLoader } from '../../components/ui/Spinner'
 import type { Incident } from '../../types'
 import { TicketCheck, AlertCircle, Clock, CheckCircle2, Plus, ArrowRight, TrendingUp } from 'lucide-react'
 
@@ -49,14 +49,12 @@ export default function DashboardPage() {
     }).finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <PageLoader />
+  if (loading) return <AppShell><ContentLoader /></AppShell>
 
   const open = incidents.filter((i) => i.status === 'open').length
   const inProgress = incidents.filter((i) => ['assigned', 'in_progress'].includes(i.status)).length
   const resolved = incidents.filter((i) => i.status === 'resolved').length
   const critical = incidents.filter((i) => i.priority === 'critical' && i.status !== 'closed').length
-
-  const isAgent = ['agent', 'supervisor', 'admin'].includes(user?.role ?? '')
 
   const recent = [...incidents]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -68,15 +66,13 @@ export default function DashboardPage() {
         title={`Hola, ${user?.first_name} 👋`}
         subtitle="Resumen de incidencias del sistema"
         action={
-          !isAgent ? (
-            <Link
-              to="/incidents/new"
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors shadow-sm"
-            >
-              <Plus size={16} />
-              Nueva incidencia
-            </Link>
-          ) : undefined
+          <Link
+            to="/incidents/new"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors shadow-sm"
+          >
+            <Plus size={16} />
+            Nueva incidencia
+          </Link>
         }
       />
 

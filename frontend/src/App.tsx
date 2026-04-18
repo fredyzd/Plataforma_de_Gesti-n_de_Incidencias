@@ -12,6 +12,10 @@ import IncidentListPage from './pages/incidents/IncidentListPage'
 import CreateIncidentPage from './pages/incidents/CreateIncidentPage'
 import IncidentDetailPage from './pages/incidents/IncidentDetailPage'
 import ReportsPage from './pages/reports/ReportsPage'
+import UsersPage from './pages/users/UsersPage'
+import SettingsPage from './pages/settings/SettingsPage'
+import NotificationsPage from './pages/notifications/NotificationsPage'
+import ProfilePage from './pages/profile/ProfilePage'
 
 export default function App() {
   return (
@@ -38,6 +42,31 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute roles={['admin', 'supervisor']}>
+                  <UsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute roles={['admin', 'supervisor']}>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute roles={['admin', 'supervisor']}>
+                  <NotificationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
             {/* Redirects */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -100,13 +100,18 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   getMe(@CurrentUser() user: JwtAccessPayload) {
-    return {
-      id: user.sub,
-      email: user.email,
-      role: user.role,
-      session_id: user.sessionId,
-      env: user.env,
-    };
+    return this.authService.getProfile(user.sub);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  changePassword(
+    @CurrentUser() user: JwtAccessPayload,
+    @Body() body: { current_password: string; new_password: string },
+    @Ip() ip: string,
+  ) {
+    return this.authService.changePassword(user.sub, body.current_password, body.new_password, ip);
   }
 
   @Post('forgot-password')

@@ -4,7 +4,7 @@ import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { AppShell, PageHeader } from '../../components/layout/AppShell'
 import { PriorityBadge, StatusBadge } from '../../components/ui/Badge'
-import { PageLoader } from '../../components/ui/Spinner'
+import { ContentLoader } from '../../components/ui/Spinner'
 import type { Incident, IncidentPriority, IncidentStatus } from '../../types'
 import { Plus, Search, SlidersHorizontal, ArrowRight, Inbox } from 'lucide-react'
 
@@ -63,7 +63,7 @@ export default function IncidentListPage() {
       : true
   )
 
-  if (loading) return <PageLoader />
+  if (loading) return <AppShell><ContentLoader /></AppShell>
 
   return (
     <AppShell>
@@ -71,15 +71,13 @@ export default function IncidentListPage() {
         title={isAgent ? 'Cola de incidencias' : 'Mis incidencias'}
         subtitle={`${filtered.length} incidencia${filtered.length !== 1 ? 's' : ''}`}
         action={
-          !isAgent ? (
-            <Link
-              to="/incidents/new"
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors shadow-sm"
-            >
-              <Plus size={16} />
-              Nueva
-            </Link>
-          ) : undefined
+          <Link
+            to="/incidents/new"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors shadow-sm"
+          >
+            <Plus size={16} />
+            Nueva
+          </Link>
         }
       />
 

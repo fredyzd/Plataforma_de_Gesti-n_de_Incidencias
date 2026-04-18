@@ -8,6 +8,9 @@ import {
   Shield,
   BarChart3,
   ChevronRight,
+  Users,
+  Bell,
+  Settings,
 } from 'lucide-react'
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
@@ -24,9 +27,12 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} />, exact: true },
-  { to: '/incidents/new', label: 'Nueva incidencia', icon: <Plus size={16} />, roles: ['reporter'] },
+  { to: '/incidents/new', label: 'Nueva incidencia', icon: <Plus size={16} /> },
   { to: '/incidents', label: 'Incidencias', icon: <List size={16} /> },
   { to: '/reports', label: 'Reportes', icon: <BarChart3 size={16} />, roles: ['agent', 'supervisor', 'admin'] },
+  { to: '/users', label: 'Usuarios', icon: <Users size={16} />, roles: ['admin', 'supervisor'] },
+  { to: '/notifications', label: 'Notificaciones', icon: <Bell size={16} />, roles: ['admin', 'supervisor'] },
+  { to: '/settings', label: 'Configuración', icon: <Settings size={16} />, roles: ['admin', 'supervisor'] },
 ]
 
 function isActive(item: NavItem, pathname: string) {
@@ -107,17 +113,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* User footer */}
         <div className="border-t border-slate-800 p-3">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-lg mb-1">
+          <Link
+            to="/profile"
+            className="flex items-center gap-3 px-2 py-2 rounded-lg mb-1 hover:bg-slate-800 transition-colors group"
+          >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
               {initials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-slate-200 truncate">
+              <p className="text-xs font-semibold text-slate-200 truncate group-hover:text-white transition-colors">
                 {user?.first_name} {user?.last_name}
               </p>
               <p className="text-[11px] text-slate-500 capitalize truncate">{user?.role}</p>
             </div>
-          </div>
+          </Link>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"

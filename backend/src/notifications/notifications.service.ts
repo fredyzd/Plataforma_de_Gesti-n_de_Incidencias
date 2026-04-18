@@ -259,4 +259,38 @@ export class NotificationsService {
   getLog(): NotificationLogEntry[] {
     return [...this.log].reverse();
   }
+
+  getSmtpStatus(): {
+    configured: boolean
+    mode: 'smtp' | 'ethereal' | 'none'
+    host: string | null
+    port: number | null
+    user: string | null
+    from: string | null
+    secure: boolean
+    initialized: boolean
+    logCount: number
+  } {
+    const host = process.env.SMTP_HOST ?? null
+    const user = process.env.SMTP_USER ?? null
+    const from = process.env.SMTP_FROM ?? '"PGI Sistema" <noreply@pgi.local>'
+    const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : null
+    const secure = process.env.SMTP_SECURE === 'true'
+
+    let mode: 'smtp' | 'ethereal' | 'none' = 'none'
+    if (host && user) mode = 'smtp'
+    else if (this.initialized && this.transporter) mode = 'ethereal'
+
+    return {
+      configured: mode !== 'none',
+      mode,
+      host,
+      port,
+      user,
+      from,
+      secure,
+      initialized: this.initialized,
+      logCount: this.log.length,
+    }
+  }
 }

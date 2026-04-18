@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { api } from '../../lib/api'
 import { AppShell, PageHeader } from '../../components/layout/AppShell'
 import { PriorityBadge, StatusBadge } from '../../components/ui/Badge'
-import { PageLoader } from '../../components/ui/Spinner'
+import { ContentLoader } from '../../components/ui/Spinner'
 import { useIncidentListUpdates } from '../../hooks/useSocket'
 import type { IncidentPriority, IncidentStatus } from '../../types'
 import {
@@ -144,7 +144,7 @@ export default function ReportsPage() {
   useEffect(() => { load() }, [load])
   useIncidentListUpdates(useCallback(() => { void load(true) }, [load]))
 
-  if (loading) return <PageLoader />
+  if (loading) return <AppShell><ContentLoader /></AppShell>
   if (!summary) return null
 
   const maxByStatus = Math.max(...Object.values(summary.byStatus), 1)

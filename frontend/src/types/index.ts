@@ -8,6 +8,22 @@ export interface User {
   role: Role
 }
 
+export interface UserDetail {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: Role
+  department: string | null
+  phone: string | null
+  active: boolean
+  emailVerified: boolean
+  lastLogin: string | null
+  forcePasswordChange: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export type IncidentPriority = 'critical' | 'high' | 'medium' | 'low'
 export type IncidentStatus =
   | 'open'

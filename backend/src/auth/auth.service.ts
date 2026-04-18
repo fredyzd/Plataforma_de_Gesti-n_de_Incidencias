@@ -724,4 +724,54 @@ export class AuthService {
   getAuditLog() {
     return this.auditLog;
   }
+
+  async getProfile(userId: string) {
+    const { rows } = await this.db.query<{
+      id: string; email: string; first_name: string; last_name: string;
+      role: string; department: string | null; phone: string | null;
+      active: boolean; last_login: string | null; created_at: string;
+    }>(
+      `SELECT id, email, first_name, last_name, role, department, phone, active, last_login, created_at
+       FROM users WHERE id = $1`,
+      [userId],
+    );
+    const row = rows[0];
+    if (!row) throw new UnauthorizedException('Usuario no encontrado');
+    return {
+      id: row.id,
+      email: row.email,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      role: row.role,
+      department: row.department,
+      phone: row.phone,
+      active: row.active,
+      lastLogin: row.last_login,
+      createdAt: row.created_at,
+    };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string, ip: string) {
+    if (!newPassword || newPassword.length < 8) {
+      throw new HttpException('La nueva contraseña debe tener al menos 8 caracteres', HttpStatus.BAD_REQUEST);
+    }
+
+    const user = await this.findUserById(userId);
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) {
+      this.recordAuthEvent('change_password_failed', ip, user.email, userId);
+      throw new HttpException('Contraseña actual incorrecta', HttpStatus.BAD_REQUEST);
+    }
+
+    const newHash = await this.hash(newPassword);
+    await this.db.query(
+      `UPDATE users SET password_hash = $1, force_password_change = false, updated_at = NOW() WHERE id = $2`,
+      [newHash, userId],
+    );
+
+    this.recordAuthEvent('change_password_success', ip, user.email, userId);
+    return { success: true };
+  }
 }
