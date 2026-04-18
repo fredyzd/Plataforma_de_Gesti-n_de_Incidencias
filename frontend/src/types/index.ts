@@ -34,6 +34,8 @@ export interface Incident {
   updatedAt: string
   resolvedAt: string | null
   closedAt: string | null
+  slaDeadlineAt?: string
+  slaBreached?: boolean
 }
 
 export interface TrackingEvent {

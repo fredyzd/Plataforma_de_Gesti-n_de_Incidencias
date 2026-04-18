@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, Get, UseGuards } from '@nestjs/common';
+﻿import { Controller, ForbiddenException, Get, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtAccessPayload } from '../auth/auth.types';
@@ -18,19 +18,19 @@ export class ReportsController {
   }
 
   @Get('summary')
-  getSummary(@CurrentUser() user: JwtAccessPayload) {
+  async getSummary(@CurrentUser() user: JwtAccessPayload) {
     this.assertAccess(user);
     return this.reportsService.getSummary();
   }
 
   @Get('aging')
-  getAging(@CurrentUser() user: JwtAccessPayload) {
+  async getAging(@CurrentUser() user: JwtAccessPayload) {
     this.assertAccess(user);
     return this.reportsService.getAging();
   }
 
   @Get('sla')
-  getSla(@CurrentUser() user: JwtAccessPayload) {
+  async getSla(@CurrentUser() user: JwtAccessPayload) {
     this.assertAccess(user);
     return this.reportsService.getSlaDetail();
   }

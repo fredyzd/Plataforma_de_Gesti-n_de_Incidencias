@@ -7,6 +7,7 @@ import {
   LogOut,
   Shield,
   BarChart3,
+  ChevronRight,
 } from 'lucide-react'
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
@@ -18,14 +19,21 @@ interface NavItem {
   label: string
   icon: ReactNode
   roles?: string[]
+  exact?: boolean
 }
 
 const navItems: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-  { to: '/incidents/new', label: 'Nueva incidencia', icon: <Plus size={18} />, roles: ['reporter'] },
-  { to: '/incidents', label: 'Incidencias', icon: <List size={18} /> },
-  { to: '/reports', label: 'Reportes', icon: <BarChart3 size={18} />, roles: ['agent', 'supervisor', 'admin'] },
+  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} />, exact: true },
+  { to: '/incidents/new', label: 'Nueva incidencia', icon: <Plus size={16} />, roles: ['reporter'] },
+  { to: '/incidents', label: 'Incidencias', icon: <List size={16} /> },
+  { to: '/reports', label: 'Reportes', icon: <BarChart3 size={16} />, roles: ['agent', 'supervisor', 'admin'] },
 ]
+
+function isActive(item: NavItem, pathname: string) {
+  if (item.exact) return pathname === item.to
+  if (item.to === '/incidents') return pathname.startsWith('/incidents') && pathname !== '/incidents/new'
+  return pathname.startsWith(item.to)
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
@@ -41,67 +49,80 @@ export function AppShell({ children }: { children: ReactNode }) {
     (item) => !item.roles || item.roles.includes(user?.role ?? '')
   )
 
+  const initials = [user?.first_name?.[0], user?.last_name?.[0]]
+    .filter(Boolean)
+    .join('')
+    .toUpperCase() || '?'
+
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
-        {/* Logo + env badge */}
-        <div className="px-4 py-4 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <Shield size={20} className="text-blue-600" />
-            <span className="font-semibold text-gray-900 text-sm">PGI</span>
+      <aside className="w-60 flex-shrink-0 bg-slate-900 flex flex-col">
+        {/* Logo */}
+        <div className="px-5 py-5 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Shield size={16} className="text-white" />
+            </div>
+            <div>
+              <span className="font-bold text-white text-sm tracking-wide">PGI</span>
+              <span
+                className={clsx(
+                  'ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest',
+                  ENV === 'production'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-amber-500/20 text-amber-400'
+                )}
+              >
+                {ENV === 'production' ? 'PROD' : 'QAS'}
+              </span>
+            </div>
           </div>
-          <span
-            className={clsx(
-              'mt-1 inline-block text-xs font-bold px-2 py-0.5 rounded uppercase tracking-widest',
-              ENV === 'production'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-amber-100 text-amber-800'
-            )}
-          >
-            {ENV === 'production' ? 'PROD' : 'QAS'}
-          </span>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
-          {visibleItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={clsx(
-                'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                location.pathname.startsWith(item.to) && item.to !== '/dashboard'
-                  ? 'bg-blue-50 text-blue-700'
-                  : location.pathname === item.to
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              )}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {visibleItems.map((item) => {
+            const active = isActive(item, location.pathname)
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={clsx(
+                  'group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                  active
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                )}
+              >
+                <span className={clsx('flex-shrink-0', active ? 'text-white' : 'text-slate-500 group-hover:text-slate-300')}>
+                  {item.icon}
+                </span>
+                <span className="flex-1">{item.label}</span>
+                {active && <ChevronRight size={12} className="text-indigo-300 flex-shrink-0" />}
+              </Link>
+            )
+          })}
         </nav>
 
-        {/* User info */}
-        <div className="border-t border-gray-200 px-3 py-3 space-y-1">
-          <div className="flex items-center gap-2 px-1">
-            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-              {user?.first_name?.[0]?.toUpperCase() ?? '?'}
+        {/* User footer */}
+        <div className="border-t border-slate-800 p-3">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-lg mb-1">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              {initials}
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-gray-900 truncate">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-slate-200 truncate">
                 {user?.first_name} {user?.last_name}
               </p>
-              <p className="text-xs text-gray-500 truncate capitalize">{user?.role}</p>
+              <p className="text-[11px] text-slate-500 capitalize truncate">{user?.role}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-md transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
           >
-            <LogOut size={14} />
+            <LogOut size={13} />
             Cerrar sesión
           </button>
         </div>
@@ -115,7 +136,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   )
 }
 
-// Header dentro de cada página
 export function PageHeader({
   title,
   subtitle,
@@ -126,10 +146,10 @@ export function PageHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
+    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
       <div>
-        <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
-        {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+        <h1 className="text-lg font-semibold text-slate-900">{title}</h1>
+        {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
       </div>
       {action && <div>{action}</div>}
     </div>

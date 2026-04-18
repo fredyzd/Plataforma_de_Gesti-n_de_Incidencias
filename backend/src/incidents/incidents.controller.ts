@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Get,
@@ -30,7 +30,7 @@ export class IncidentsController {
   }
 
   @Get()
-  listIncidents(
+  async listIncidents(
     @CurrentUser() user: JwtAccessPayload,
     @Query() query: ListIncidentsDto,
   ) {
@@ -38,7 +38,7 @@ export class IncidentsController {
   }
 
   @Post()
-  createIncident(
+  async createIncident(
     @CurrentUser() user: JwtAccessPayload,
     @Body() body: CreateIncidentDto,
   ) {
@@ -46,12 +46,15 @@ export class IncidentsController {
   }
 
   @Get(':id')
-  getIncident(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
+  async getIncident(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ) {
     return this.incidentsService.getIncidentById(this.toAuthzUser(user), id);
   }
 
   @Patch(':id')
-  updateIncident(
+  async updateIncident(
     @CurrentUser() user: JwtAccessPayload,
     @Param('id') id: string,
     @Body() body: UpdateIncidentDto,
@@ -64,7 +67,7 @@ export class IncidentsController {
   }
 
   @Post(':id/assign')
-  assignIncident(
+  async assignIncident(
     @CurrentUser() user: JwtAccessPayload,
     @Param('id') id: string,
     @Body() body: AssignIncidentDto,
@@ -77,7 +80,7 @@ export class IncidentsController {
   }
 
   @Post(':id/status')
-  changeStatus(
+  async changeStatus(
     @CurrentUser() user: JwtAccessPayload,
     @Param('id') id: string,
     @Body() body: ChangeStatusDto,
@@ -86,17 +89,23 @@ export class IncidentsController {
   }
 
   @Get(':id/tracking')
-  getTracking(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
+  async getTracking(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ) {
     return this.incidentsService.getTracking(this.toAuthzUser(user), id);
   }
 
   @Get(':id/comments')
-  listComments(@CurrentUser() user: JwtAccessPayload, @Param('id') id: string) {
+  async listComments(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id') id: string,
+  ) {
     return this.incidentsService.listComments(this.toAuthzUser(user), id);
   }
 
   @Post(':id/comments')
-  addComment(
+  async addComment(
     @CurrentUser() user: JwtAccessPayload,
     @Param('id') id: string,
     @Body() body: CreateCommentDto,

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -10,10 +10,13 @@ import { AttachmentsModule } from './attachments/attachments.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
 import { EventsModule } from './events/events.module';
+import { DatabaseModule } from './database/database.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    DatabaseModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
@@ -26,6 +29,7 @@ import { EventsModule } from './events/events.module';
     IncidentsModule,
     AttachmentsModule,
     ReportsModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [
@@ -36,4 +40,4 @@ import { EventsModule } from './events/events.module';
     },
   ],
 })
-export class AppModule {}
+export cl

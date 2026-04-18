@@ -14,7 +14,13 @@ import {
   Trash2,
   Lock,
   Globe,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronLeft,
+  User,
+  Calendar,
 } from 'lucide-react'
+import clsx from 'clsx'
 
 const AGENT_ROLES = new Set(['agent', 'supervisor', 'admin'])
 
@@ -59,10 +65,56 @@ function formatDate(iso: string) {
   })
 }
 
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function SlaIndicator({ incident }: { incident: Incident }) {
+  if (!incident.slaDeadlineAt) return null
+  const now = new Date()
+  const deadline = new Date(incident.slaDeadlineAt)
+  const finishedAt = incident.resolvedAt ?? incident.closedAt
+  const breached = incident.slaBreached || (!finishedAt && now > deadline)
+  const remainingMs = deadline.getTime() - now.getTime()
+  const remainingH = remainingMs / 3600000
+  const isActive = !['resolved', 'closed'].includes(incident.status)
+
+  if (breached) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs font-medium text-red-700">
+        <AlertTriangle size={13} />
+        <span>SLA vencido</span>
+      </div>
+    )
+  }
+  if (isActive && remainingH < 4) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-medium text-amber-700">
+        <Clock size={13} />
+        <span>SLA: {remainingH.toFixed(1)}h restantes</span>
+      </div>
+    )
+  }
+  if (!isActive) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-medium text-emerald-700">
+        <CheckCircle2 size={13} />
+        <span>SLA cumplido</span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600">
+      <Clock size={13} />
+      <span>SLA: {remainingH.toFixed(0)}h restantes</span>
+    </div>
+  )
 }
 
 export default function IncidentDetailPage() {
@@ -77,18 +129,15 @@ export default function IncidentDetailPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Comment form
   const [commentBody, setCommentBody] = useState('')
   const [isInternal, setIsInternal] = useState(false)
   const [submittingComment, setSubmittingComment] = useState(false)
 
-  // Status change
   const [newStatus, setNewStatus] = useState<IncidentStatus | ''>('')
   const [statusComment, setStatusComment] = useState('')
   const [submittingStatus, setSubmittingStatus] = useState(false)
   const [statusError, setStatusError] = useState('')
 
-  // File upload
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploadingFile, setUploadingFile] = useState(false)
   const [uploadError, setUploadError] = useState('')
@@ -116,10 +165,7 @@ export default function IncidentDetailPage() {
     if (!commentBody.trim()) return
     setSubmittingComment(true)
     try {
-      await api.post(`/incidents/${id}/comments`, {
-        body: commentBody,
-        is_internal: isInternal,
-      })
+      await api.post(`/incidents/${id}/comments`, { body: commentBody, is_internal: isInternal })
       setCommentBody('')
       await reload()
     } finally {
@@ -183,22 +229,24 @@ export default function IncidentDetailPage() {
   const handleDownload = (attId: string, name: string) => {
     const token = localStorage.getItem('access_token')
     const url = `/api/incidents/${id}/attachments/${attId}/download`
-    const a = document.createElement('a')
-    a.href = url
-    a.setAttribute('download', name)
-    // For authenticated download, use fetch
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.blob())
       .then((blob) => {
         const objUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
         a.href = objUrl
+        a.setAttribute('download', name)
         a.click()
         URL.revokeObjectURL(objUrl)
       })
   }
 
   if (loading) return <PageLoader />
-  if (!incident) return <div className="p-6 text-gray-500">Incidencia no encontrada</div>
+  if (!incident) return (
+    <AppShell>
+      <div className="p-6 text-slate-500">Incidencia no encontrada.</div>
+    </AppShell>
+  )
 
   const allowedTransitions = STATUS_TRANSITIONS[incident.status] ?? []
 
@@ -210,63 +258,68 @@ export default function IncidentDetailPage() {
         action={
           <button
             onClick={() => navigate(-1)}
-            className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 border border-gray-200 rounded-lg"
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
           >
-            ← Volver
+            <ChevronLeft size={15} />
+            Volver
           </button>
         }
       />
 
-      <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main column */}
         <div className="lg:col-span-2 space-y-5">
           {/* Description */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Descripción</h3>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{incident.description}</p>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Descripción</h3>
+            <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{incident.description}</p>
           </div>
 
           {/* Comments */}
-          <div className="bg-white rounded-xl border border-gray-200">
-            <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-100">
-              <MessageSquare size={16} className="text-gray-400" />
-              <h3 className="text-sm font-semibold text-gray-700">Comentarios ({comments.length})</h3>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100">
+              <MessageSquare size={15} className="text-slate-400" />
+              <h3 className="text-sm font-semibold text-slate-700">Comentarios</h3>
+              <span className="ml-auto text-xs font-medium text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{comments.length}</span>
             </div>
 
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-slate-50">
               {comments.length === 0 && (
-                <p className="px-5 py-6 text-sm text-gray-400 text-center">Sin comentarios aún.</p>
+                <p className="px-5 py-8 text-sm text-slate-400 text-center">Sin comentarios aún.</p>
               )}
               {comments.map((c) => (
-                <div key={c.id} className="px-5 py-4">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-xs font-medium text-gray-700">{c.authorId.slice(0, 8)}…</span>
+                <div key={c.id} className={clsx('px-5 py-4', c.isInternal && 'bg-amber-50/50')}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                      <User size={11} className="text-indigo-600" />
+                    </div>
+                    <span className="text-xs font-medium text-slate-700">{c.authorId.slice(0, 8)}…</span>
                     {c.isInternal && (
-                      <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
-                        <Lock size={10} />
+                      <span className="flex items-center gap-1 text-[11px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full font-medium">
+                        <Lock size={9} />
                         Interno
                       </span>
                     )}
-                    <span className="text-xs text-gray-400 ml-auto">{formatDate(c.createdAt)}</span>
+                    <span className="text-xs text-slate-400 ml-auto">{formatDate(c.createdAt)}</span>
                   </div>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.body}</p>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed pl-8">{c.body}</p>
                 </div>
               ))}
             </div>
 
-            {/* Add comment */}
-            <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-xl">
+            {/* Add comment form */}
+            <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/40 rounded-b-2xl">
               <form onSubmit={handleAddComment} className="space-y-3">
                 <textarea
                   rows={3}
                   value={commentBody}
                   onChange={(e) => setCommentBody(e.target.value)}
                   placeholder="Escribe un comentario..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none bg-white"
                 />
                 <div className="flex items-center justify-between">
                   {isAgent && (
-                    <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={isInternal}
@@ -274,16 +327,16 @@ export default function IncidentDetailPage() {
                         className="rounded"
                       />
                       {isInternal ? (
-                        <span className="flex items-center gap-1 text-amber-700"><Lock size={12} />Comentario interno</span>
+                        <span className="flex items-center gap-1 text-amber-700 font-medium"><Lock size={11} />Interno</span>
                       ) : (
-                        <span className="flex items-center gap-1"><Globe size={12} />Público</span>
+                        <span className="flex items-center gap-1 text-slate-500"><Globe size={11} />Público</span>
                       )}
                     </label>
                   )}
                   <button
                     type="submit"
                     disabled={submittingComment || !commentBody.trim()}
-                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-medium px-3 py-2 rounded-lg ml-auto"
+                    className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-semibold px-4 py-2 rounded-xl ml-auto transition-colors"
                   >
                     {submittingComment && <Spinner className="h-3 w-3 text-white" />}
                     Enviar
@@ -294,11 +347,12 @@ export default function IncidentDetailPage() {
           </div>
 
           {/* Attachments */}
-          <div className="bg-white rounded-xl border border-gray-200">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Paperclip size={16} className="text-gray-400" />
-                <h3 className="text-sm font-semibold text-gray-700">Adjuntos ({attachments.length})</h3>
+                <Paperclip size={15} className="text-slate-400" />
+                <h3 className="text-sm font-semibold text-slate-700">Adjuntos</h3>
+                <span className="text-xs font-medium text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{attachments.length}</span>
               </div>
               <div>
                 <input
@@ -311,35 +365,38 @@ export default function IncidentDetailPage() {
                 <button
                   onClick={() => fileRef.current?.click()}
                   disabled={uploadingFile}
-                  className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 px-2.5 py-1.5 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:border-indigo-400 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-colors"
                 >
-                  {uploadingFile ? <Spinner className="h-3 w-3" /> : <Paperclip size={12} />}
+                  {uploadingFile ? <Spinner className="h-3 w-3" /> : <Paperclip size={11} />}
                   Subir archivo
                 </button>
               </div>
             </div>
 
             {uploadError && (
-              <div className="mx-5 mt-3 text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
+              <div className="mx-5 mt-3 text-xs text-red-700 bg-red-50 border border-red-200 px-3.5 py-2.5 rounded-xl flex items-center gap-2">
+                <AlertTriangle size={12} />
                 {uploadError}
               </div>
             )}
 
             {attachments.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-gray-400 text-center">Sin adjuntos.</p>
+              <p className="px-5 py-8 text-sm text-slate-400 text-center">Sin adjuntos.</p>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-slate-50">
                 {attachments.map((att) => (
-                  <div key={att.id} className="flex items-center gap-3 px-5 py-3">
-                    <Paperclip size={14} className="text-gray-400 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-800 truncate">{att.originalName}</p>
-                      <p className="text-xs text-gray-400">{formatBytes(att.sizeBytes)} · {att.mimeType}</p>
+                  <div key={att.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+                    <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Paperclip size={13} className="text-slate-500" />
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{att.originalName}</p>
+                      <p className="text-xs text-slate-400">{formatBytes(att.sizeBytes)} · {att.mimeType}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleDownload(att.id, att.originalName)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                         title="Descargar"
                       >
                         <Download size={14} />
@@ -347,7 +404,7 @@ export default function IncidentDetailPage() {
                       {(isAgent || att.uploaderId === user?.id) && (
                         <button
                           onClick={() => handleDeleteAttachment(att.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Eliminar"
                         >
                           <Trash2 size={14} />
@@ -361,89 +418,110 @@ export default function IncidentDetailPage() {
           </div>
         </div>
 
-        {/* Sidebar column */}
-        <div className="space-y-5">
-          {/* Info card */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700">Detalles</h3>
+        {/* Sidebar */}
+        <div className="space-y-4">
+          {/* SLA indicator */}
+          <SlaIndicator incident={incident} />
 
-            <div className="space-y-3 text-sm">
+          {/* Info card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Detalles</h3>
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-gray-500">Estado</span>
+                <span className="text-xs text-slate-500">Estado</span>
                 <StatusBadge status={incident.status} />
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-500">Prioridad</span>
+                <span className="text-xs text-slate-500">Prioridad</span>
                 <PriorityBadge priority={incident.priority} />
               </div>
-              <div className="flex justify-between items-start">
-                <span className="text-gray-500">Reporter</span>
-                <span className="text-right text-gray-700 text-xs break-all max-w-32">{incident.reporterEmail}</span>
-              </div>
-              {incident.assigneeId && (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Asignado</span>
-                  <span className="text-xs text-gray-700 font-mono">{incident.assigneeId.slice(0, 8)}…</span>
+              <div className="border-t border-slate-100 pt-3">
+                <div className="flex items-start gap-2 mb-2">
+                  <User size={13} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-500">Reporter</p>
+                    <p className="text-xs font-medium text-slate-700 break-all">{incident.reporterEmail}</p>
+                  </div>
                 </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">Versión</span>
-                <span className="text-xs text-gray-600 font-mono">v{incident.version}</span>
+                {incident.assigneeId && (
+                  <div className="flex items-start gap-2">
+                    <User size={13} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-500">Asignado</p>
+                      <p className="text-xs font-medium text-slate-700 font-mono">{incident.assigneeId.slice(0, 8)}…</p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">Creada</span>
-                <span className="text-xs text-gray-600">{new Date(incident.createdAt).toLocaleDateString('es-CL')}</span>
-              </div>
-              {incident.resolvedAt && (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Resuelta</span>
-                  <span className="text-xs text-gray-600">{new Date(incident.resolvedAt).toLocaleDateString('es-CL')}</span>
+              <div className="border-t border-slate-100 pt-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Calendar size={12} className="text-slate-400" />
+                  <div className="flex justify-between flex-1 items-center">
+                    <span className="text-xs text-slate-500">Creada</span>
+                    <span className="text-xs text-slate-600">{formatDateShort(incident.createdAt)}</span>
+                  </div>
                 </div>
-              )}
+                {incident.slaDeadlineAt && (
+                  <div className="flex items-center gap-2">
+                    <Clock size={12} className="text-slate-400" />
+                    <div className="flex justify-between flex-1 items-center">
+                      <span className="text-xs text-slate-500">SLA deadline</span>
+                      <span className="text-xs text-slate-600">{formatDateShort(incident.slaDeadlineAt)}</span>
+                    </div>
+                  </div>
+                )}
+                {incident.resolvedAt && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={12} className="text-emerald-500" />
+                    <div className="flex justify-between flex-1 items-center">
+                      <span className="text-xs text-slate-500">Resuelta</span>
+                      <span className="text-xs text-slate-600">{formatDateShort(incident.resolvedAt)}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-slate-500">Versión</span>
+                  <span className="text-xs text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded">v{incident.version}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Agent actions: change status */}
+          {/* Change status */}
           {isAgent && allowedTransitions.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Cambiar estado</h3>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Cambiar estado</h3>
               <form onSubmit={handleChangeStatus} className="space-y-3">
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as IncidentStatus)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
                 >
-                  <option value="">-- Selecciona estado --</option>
+                  <option value="">— Seleccionar estado —</option>
                   {allowedTransitions.map((s) => (
                     <option key={s} value={s}>{STATUS_LABELS[s]}</option>
                   ))}
                 </select>
-                {(newStatus === 'resolved' || newStatus === 'reopened') && (
+                {newStatus && (
                   <textarea
                     rows={2}
-                    required
+                    required={newStatus === 'resolved' || newStatus === 'reopened'}
                     value={statusComment}
                     onChange={(e) => setStatusComment(e.target.value)}
-                    placeholder="Comentario requerido..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  />
-                )}
-                {newStatus && newStatus !== 'resolved' && newStatus !== 'reopened' && (
-                  <textarea
-                    rows={2}
-                    value={statusComment}
-                    onChange={(e) => setStatusComment(e.target.value)}
-                    placeholder="Comentario opcional..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    placeholder={newStatus === 'resolved' || newStatus === 'reopened' ? 'Comentario requerido…' : 'Comentario opcional…'}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
                   />
                 )}
                 {statusError && (
-                  <p className="text-xs text-red-600">{statusError}</p>
+                  <p className="text-xs text-red-600 flex items-center gap-1.5">
+                    <AlertTriangle size={11} />
+                    {statusError}
+                  </p>
                 )}
                 <button
                   type="submit"
                   disabled={!newStatus || submittingStatus}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
                 >
                   {submittingStatus && <Spinner className="h-3.5 w-3.5 text-white" />}
                   Confirmar cambio
@@ -453,30 +531,34 @@ export default function IncidentDetailPage() {
           )}
 
           {/* Timeline */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
-              <Clock size={16} className="text-gray-400" />
-              <h3 className="text-sm font-semibold text-gray-700">Timeline</h3>
+              <Clock size={14} className="text-slate-400" />
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Timeline</h3>
             </div>
-            <div className="space-y-3">
-              {[...tracking].reverse().map((ev) => (
+            <div className="space-y-4">
+              {[...tracking].reverse().map((ev, idx) => (
                 <div key={ev.id} className="flex gap-3">
-                  <div className="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-blue-400" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-800">
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-indigo-400 mt-1" />
+                    {idx < tracking.length - 1 && <div className="w-px flex-1 bg-slate-100 mt-1.5" />}
+                  </div>
+                  <div className="flex-1 min-w-0 pb-1">
+                    <p className="text-xs font-semibold text-slate-800">
                       {EVENT_LABELS[ev.eventType] ?? ev.eventType}
                     </p>
                     {ev.fieldChanged && (
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {ev.fieldChanged}: <span className="line-through text-red-500">{ev.oldValue}</span>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {ev.fieldChanged}:{' '}
+                        <span className="line-through text-red-500">{ev.oldValue}</span>
                         {' → '}
-                        <span className="text-green-600">{ev.newValue}</span>
+                        <span className="text-emerald-600 font-medium">{ev.newValue}</span>
                       </p>
                     )}
                     {ev.comment && (
-                      <p className="text-xs text-gray-500 mt-0.5 italic">"{ev.comment}"</p>
+                      <p className="text-xs text-slate-500 mt-0.5 italic">"{ev.comment}"</p>
                     )}
-                    <p className="text-xs text-gray-400 mt-0.5">{formatDate(ev.createdAt)}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">{formatDate(ev.createdAt)}</p>
                   </div>
                 </div>
               ))}

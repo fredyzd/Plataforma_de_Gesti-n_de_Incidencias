@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Delete,
   Get,
@@ -34,12 +34,12 @@ export class AttachmentsController {
   }
 
   @Get()
-  listAttachments(
+  async listAttachments(
     @CurrentUser() user: JwtAccessPayload,
     @Param('incidentId') incidentId: string,
   ) {
     const authz = this.authzUser(user);
-    const incident = this.incidentsService.getIncidentById(authz, incidentId);
+    const incident = await this.incidentsService.getIncidentById(authz, incidentId);
     return this.attachmentsService.listByIncident(
       authz,
       incidentId,
@@ -54,16 +54,16 @@ export class AttachmentsController {
       limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
-  uploadAttachment(
+  async uploadAttachment(
     @CurrentUser() user: JwtAccessPayload,
     @Param('incidentId') incidentId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {
-      throw new NotFoundException('No se recibió ningún archivo');
+      throw new NotFoundException('No se recibio ningun archivo');
     }
     const authz = this.authzUser(user);
-    const incident = this.incidentsService.getIncidentById(authz, incidentId);
+    const incident = await this.incidentsService.getIncidentById(authz, incidentId);
     return this.attachmentsService.upload(
       authz,
       incidentId,
@@ -73,16 +73,16 @@ export class AttachmentsController {
   }
 
   @Get(':attachmentId/download')
-  downloadAttachment(
+  async downloadAttachment(
     @CurrentUser() user: JwtAccessPayload,
     @Param('incidentId') incidentId: string,
     @Param('attachmentId') attachmentId: string,
     @Res() res: Response,
   ) {
     const authz = this.authzUser(user);
-    const incident = this.incidentsService.getIncidentById(authz, incidentId);
+    const incident = await this.incidentsService.getIncidentById(authz, incidentId);
     const { stream, mimeType, originalName, sizeBytes } =
-      this.attachmentsService.getDownloadStream(
+      await this.attachmentsService.getDownloadStream(
         authz,
         incidentId,
         attachmentId,
@@ -102,14 +102,14 @@ export class AttachmentsController {
 
   @Delete(':attachmentId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteAttachment(
+  async deleteAttachment(
     @CurrentUser() user: JwtAccessPayload,
     @Param('incidentId') incidentId: string,
     @Param('attachmentId') attachmentId: string,
   ) {
     const authz = this.authzUser(user);
-    const incident = this.incidentsService.getIncidentById(authz, incidentId);
-    this.attachmentsService.delete(
+    const incident = await this.incidentsService.getIncidentById(authz, incidentId);
+    await this.attachmentsService.delete(
       authz,
       incidentId,
       attachmentId,

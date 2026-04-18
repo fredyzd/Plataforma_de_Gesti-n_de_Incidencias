@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { IncidentsService } from '../incidents/incidents.service';
 import type { IncidentRecord } from '../incidents/incidents.types';
 
@@ -16,12 +16,12 @@ const CLOSED_STATUSES = new Set(['closed', 'resolved']);
 export class ReportsService {
   constructor(private readonly incidentsService: IncidentsService) {}
 
-  private all(): IncidentRecord[] {
+  private all(): Promise<IncidentRecord[]> {
     return this.incidentsService.getAllIncidents();
   }
 
-  getSummary() {
-    const all = this.all();
+  async getSummary() {
+    const all = await this.all();
     const now = new Date();
 
     const byStatus = Object.fromEntries(
@@ -44,7 +44,6 @@ export class ReportsService {
       ]),
     );
 
-    // MTTR en horas (solo incidencias resueltas/cerradas)
     const resolved = all.filter((i) => i.resolvedAt ?? i.closedAt);
     const mttrHours =
       resolved.length > 0
@@ -55,7 +54,6 @@ export class ReportsService {
           }, 0) / resolved.length
         : null;
 
-    // SLA
     const closedAll = all.filter((i) => CLOSED_STATUSES.has(i.status));
     const slaCompliant = closedAll.filter((i) => !i.slaBreached).length;
     const slaBreached = closedAll.filter((i) => i.slaBreached).length;
@@ -64,12 +62,10 @@ export class ReportsService {
         ? Math.round((slaCompliant / closedAll.length) * 100)
         : null;
 
-    // SLA actualmente vencido en tickets abiertos
     const overdueActive = all.filter(
       (i) => ACTIVE_STATUSES.has(i.status) && new Date(i.slaDeadlineAt) < now,
     ).length;
 
-    // Tickets creados hoy
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const createdToday = all.filter(
@@ -95,16 +91,16 @@ export class ReportsService {
     };
   }
 
-  getAging() {
-    const all = this.all();
+  async getAging() {
+    const all = await this.all();
     const now = new Date();
     const active = all.filter((i) => ACTIVE_STATUSES.has(i.status));
 
     const buckets = [
       { label: '< 24 horas', min: 0, max: 24 },
-      { label: '1-3 días', min: 24, max: 72 },
-      { label: '3-7 días', min: 72, max: 168 },
-      { label: '> 7 días', min: 168, max: Infinity },
+      { label: '1-3 dias', min: 24, max: 72 },
+      { label: '3-7 dias', min: 72, max: 168 },
+      { label: '> 7 dias', min: 168, max: Infinity },
     ];
 
     return buckets.map(({ label, min, max }) => {
@@ -128,8 +124,8 @@ export class ReportsService {
     });
   }
 
-  getSlaDetail() {
-    const all = this.all();
+  async getSlaDetail() {
+    const all = await this.all();
     const now = new Date();
 
     return all

@@ -6,27 +6,33 @@ import { AppShell, PageHeader } from '../../components/layout/AppShell'
 import { PriorityBadge, StatusBadge } from '../../components/ui/Badge'
 import { PageLoader } from '../../components/ui/Spinner'
 import type { Incident } from '../../types'
-import { TicketCheck, AlertCircle, Clock, CheckCircle, Plus } from 'lucide-react'
+import { TicketCheck, AlertCircle, Clock, CheckCircle2, Plus, ArrowRight, TrendingUp } from 'lucide-react'
 
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-}: {
+interface StatCardProps {
   label: string
   value: number
   icon: React.ReactNode
-  color: string
-}) {
+  iconBg: string
+  trend?: string
+}
+
+function StatCard({ label, value, icon, iconBg, trend }: StatCardProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${color}`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2 tabular-nums">{value}</p>
+          {trend && (
+            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+              <TrendingUp size={11} />
+              {trend}
+            </p>
+          )}
+        </div>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+          {icon}
+        </div>
       </div>
     </div>
   )
@@ -54,18 +60,18 @@ export default function DashboardPage() {
 
   const recent = [...incidents]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
+    .slice(0, 6)
 
   return (
     <AppShell>
       <PageHeader
-        title={`Hola, ${user?.first_name}`}
-        subtitle="Resumen de incidencias"
+        title={`Hola, ${user?.first_name} 👋`}
+        subtitle="Resumen de incidencias del sistema"
         action={
           !isAgent ? (
             <Link
               to="/incidents/new"
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors shadow-sm"
             >
               <Plus size={16} />
               Nueva incidencia
@@ -75,63 +81,74 @@ export default function DashboardPage() {
       />
 
       <div className="p-6 space-y-6">
-        {/* Stats */}
+        {/* Stats grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label="Abiertas"
             value={open}
             icon={<AlertCircle size={20} className="text-blue-600" />}
-            color="bg-blue-50"
+            iconBg="bg-blue-50"
           />
           <StatCard
             label="En progreso"
             value={inProgress}
             icon={<Clock size={20} className="text-amber-600" />}
-            color="bg-amber-50"
+            iconBg="bg-amber-50"
           />
           <StatCard
             label="Resueltas"
             value={resolved}
-            icon={<CheckCircle size={20} className="text-green-600" />}
-            color="bg-green-50"
+            icon={<CheckCircle2 size={20} className="text-emerald-600" />}
+            iconBg="bg-emerald-50"
           />
           <StatCard
             label="Críticas activas"
             value={critical}
             icon={<TicketCheck size={20} className="text-red-600" />}
-            color="bg-red-50"
+            iconBg="bg-red-50"
           />
         </div>
 
         {/* Recent incidents */}
-        <div className="bg-white rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-900">Incidencias recientes</h2>
-            <Link to="/incidents" className="text-xs text-blue-600 hover:underline">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <h2 className="text-sm font-semibold text-slate-800">Incidencias recientes</h2>
+            <Link
+              to="/incidents"
+              className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+            >
               Ver todas
+              <ArrowRight size={12} />
             </Link>
           </div>
 
           {recent.length === 0 ? (
-            <div className="px-5 py-10 text-center text-sm text-gray-400">
-              No hay incidencias registradas aún.
+            <div className="px-6 py-16 text-center">
+              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <TicketCheck size={20} className="text-slate-400" />
+              </div>
+              <p className="text-sm font-medium text-slate-600">No hay incidencias aún</p>
+              <p className="text-xs text-slate-400 mt-1">Las nuevas incidencias aparecerán aquí</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-slate-50">
               {recent.map((inc) => (
                 <Link
                   key={inc.id}
                   to={`/incidents/${inc.id}`}
-                  className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors"
+                  className="group flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{inc.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{inc.ticketNumber}</p>
+                    <p className="text-sm font-medium text-slate-900 group-hover:text-indigo-700 truncate transition-colors">
+                      {inc.title}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5 font-mono">{inc.ticketNumber}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <PriorityBadge priority={inc.priority} />
                     <StatusBadge status={inc.status} />
                   </div>
+                  <ArrowRight size={14} className="text-slate-300 group-hover:text-slate-500 flex-shrink-0 transition-colors" />
                 </Link>
               ))}
             </div>

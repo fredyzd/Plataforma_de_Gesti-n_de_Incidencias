@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -14,7 +14,8 @@ import {
 } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import type { AttachmentPublic, AttachmentRecord } from './attachments.types';
+import type { AttachmentPublic } from './attachments.types';
+import { DatabaseService } from '../database/database.service';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -39,13 +40,24 @@ interface AuthzUser {
   email?: string;
 }
 
+interface AttachmentRow {
+  id: string;
+  incident_id: string;
+  uploaded_by: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  checksum_sha256: string | null;
+  created_at: string;
+}
+
 @Injectable()
 export class AttachmentsService {
-  private readonly records = new Map<string, AttachmentRecord>();
   private readonly storagePath: string;
   private readonly maxFileSizeBytes: number;
 
-  constructor() {
+  constructor(private readonly db: DatabaseService) {
     this.storagePath = join(
       process.cwd(),
       process.env.STORAGE_PATH ?? 'storage/attachments',
@@ -78,25 +90,25 @@ export class AttachmentsService {
     return createHash('sha256').update(buffer).digest('hex');
   }
 
-  private toPublic(record: AttachmentRecord): AttachmentPublic {
+  private toPublic(row: AttachmentRow): AttachmentPublic {
     return {
-      id: record.id,
-      incidentId: record.incidentId,
-      uploaderId: record.uploaderId,
-      originalName: record.originalName,
-      mimeType: record.mimeType,
-      sizeBytes: record.sizeBytes,
-      checksum: record.checksum,
-      createdAt: record.createdAt,
+      id: row.id,
+      incidentId: row.incident_id,
+      uploaderId: row.uploaded_by,
+      originalName: row.file_name,
+      mimeType: row.mime_type,
+      sizeBytes: row.file_size,
+      checksum: row.checksum_sha256 ?? '',
+      createdAt: row.created_at,
     };
   }
 
-  upload(
+  async upload(
     user: AuthzUser,
     incidentId: string,
     incidentReporterId: string,
     file: Express.Multer.File,
-  ): AttachmentPublic {
+  ): Promise<AttachmentPublic> {
     this.assertCanAccess(user, incidentReporterId);
 
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -107,13 +119,13 @@ export class AttachmentsService {
 
     if (file.size > this.maxFileSizeBytes) {
       throw new BadRequestException(
-        `El archivo supera el tamaño máximo permitido (${process.env.MAX_FILE_SIZE_MB ?? 10} MB)`,
+        `El archivo supera el tamano maximo permitido (${process.env.MAX_FILE_SIZE_MB ?? 10} MB)`,
       );
     }
 
     const sanitized = this.sanitizeFilename(file.originalname);
     if (!sanitized) {
-      throw new BadRequestException('Nombre de archivo inválido');
+      throw new BadRequestException('Nombre de archivo invalido');
     }
 
     const checksum = this.computeChecksum(file.buffer);
@@ -121,39 +133,64 @@ export class AttachmentsService {
     const filePath = join(this.storagePath, storedName);
     writeFileSync(filePath, file.buffer);
 
-    const record: AttachmentRecord = {
-      id: randomUUID(),
-      incidentId,
-      uploaderId: user.id,
-      originalName: sanitized,
-      storedName,
-      mimeType: file.mimetype,
-      sizeBytes: file.size,
-      checksum,
-      createdAt: new Date().toISOString(),
-      deletedAt: null,
-    };
+    const { rows } = await this.db.query<AttachmentRow>(
+      `
+        INSERT INTO attachments (
+          incident_id,
+          uploaded_by,
+          file_name,
+          file_path,
+          file_size,
+          mime_type,
+          checksum_sha256,
+          created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        RETURNING id,
+                  incident_id,
+                  uploaded_by,
+                  file_name,
+                  file_path,
+                  file_size,
+                  mime_type,
+                  checksum_sha256,
+                  created_at
+      `,
+      [incidentId, user.id, sanitized, storedName, file.size, file.mimetype, checksum],
+    );
 
-    this.records.set(record.id, record);
-    return this.toPublic(record);
+    return this.toPublic(rows[0]);
   }
 
-  listByIncident(
+  async listByIncident(
     user: AuthzUser,
     incidentId: string,
     incidentReporterId: string,
-  ): AttachmentPublic[] {
+  ): Promise<AttachmentPublic[]> {
     this.assertCanAccess(user, incidentReporterId);
-    const result: AttachmentPublic[] = [];
-    for (const record of this.records.values()) {
-      if (record.incidentId === incidentId && !record.deletedAt) {
-        result.push(this.toPublic(record));
-      }
-    }
-    return result;
+
+    const { rows } = await this.db.query<AttachmentRow>(
+      `
+        SELECT id,
+               incident_id,
+               uploaded_by,
+               file_name,
+               file_path,
+               file_size,
+               mime_type,
+               checksum_sha256,
+               created_at
+        FROM attachments
+        WHERE incident_id = $1
+        ORDER BY created_at ASC
+      `,
+      [incidentId],
+    );
+
+    return rows.map((row) => this.toPublic(row));
   }
 
-  getDownloadStream(
+  async getDownloadStream(
     user: AuthzUser,
     incidentId: string,
     attachmentId: string,
@@ -161,50 +198,87 @@ export class AttachmentsService {
   ) {
     this.assertCanAccess(user, incidentReporterId);
 
-    const record = this.records.get(attachmentId);
-    if (!record || record.incidentId !== incidentId || record.deletedAt) {
+    const { rows } = await this.db.query<AttachmentRow>(
+      `
+        SELECT id,
+               incident_id,
+               uploaded_by,
+               file_name,
+               file_path,
+               file_size,
+               mime_type,
+               checksum_sha256,
+               created_at
+        FROM attachments
+        WHERE id = $1 AND incident_id = $2
+      `,
+      [attachmentId, incidentId],
+    );
+
+    const record = rows[0];
+    if (!record) {
       throw new NotFoundException('Adjunto no encontrado');
     }
 
-    const filePath = join(this.storagePath, record.storedName);
+    const filePath = join(this.storagePath, record.file_path);
     if (!existsSync(filePath)) {
       throw new NotFoundException('Archivo no encontrado en almacenamiento');
     }
 
     return {
       stream: createReadStream(filePath),
-      mimeType: record.mimeType,
-      originalName: record.originalName,
-      sizeBytes: record.sizeBytes,
+      mimeType: record.mime_type,
+      originalName: record.file_name,
+      sizeBytes: record.file_size,
     };
   }
 
-  delete(
+  async delete(
     user: AuthzUser,
     incidentId: string,
     attachmentId: string,
     incidentReporterId: string,
-  ): void {
+  ): Promise<void> {
     if (!AGENT_ROLES.has(user.role) && user.id !== incidentReporterId) {
       throw new ForbiddenException(
         'No tienes permisos para eliminar este adjunto',
       );
     }
 
-    const record = this.records.get(attachmentId);
-    if (!record || record.incidentId !== incidentId || record.deletedAt) {
+    const { rows } = await this.db.query<AttachmentRow>(
+      `
+        SELECT id,
+               incident_id,
+               uploaded_by,
+               file_name,
+               file_path,
+               file_size,
+               mime_type,
+               checksum_sha256,
+               created_at
+        FROM attachments
+        WHERE id = $1 AND incident_id = $2
+      `,
+      [attachmentId, incidentId],
+    );
+
+    const record = rows[0];
+    if (!record) {
       throw new NotFoundException('Adjunto no encontrado');
     }
 
-    const filePath = join(this.storagePath, record.storedName);
+    const filePath = join(this.storagePath, record.file_path);
     if (existsSync(filePath)) {
       try {
         unlinkSync(filePath);
       } catch {
-        // Log and continue — soft-delete still proceeds
+        // Ignore physical delete errors to avoid blocking DB cleanup.
       }
     }
 
-    record.deletedAt = new Date().toISOString();
+    await this.db.query(
+      'DELETE FROM attachments WHERE id = $1 AND incident_id = $2',
+      [attachmentId, incidentId],
+    );
   }
 }
